@@ -1,0 +1,135 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# AI Security Operations Workbook\n\nOperational workbook for AI prompts, AI security detections, agent execution, high-risk tool use, and Microsoft Sentinel triage.\n\n> Replace `{SubscriptionId}`, `{ResourceGroup}`, and `{WorkspaceName}` during deployment or select your Sentinel workspace when editing the workbook."
+      },
+      "name": "header"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "timeRange",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 86400000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ]
+            }
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let TimeRange = ago(24h);\nunion isfuzzy=true\n(\n    AIApp_CL\n    | where TimeGenerated > TimeRange\n    | summarize Count=count() by Severity_s\n),\n(\n    AIToolExecution_CL\n    | where TimeGenerated > TimeRange\n    | summarize Count=count() by Severity_s\n)\n| extend Severity = coalesce(Severity_s, \"Informational\")\n| summarize Count=sum(Count) by Severity\n| order by Count desc",
+        "size": 0,
+        "title": "AI Security Detections by Severity",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "piechart"
+      },
+      "name": "query-1"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let suspicious_terms = dynamic([\n    \"ignore previous instructions\",\n    \"reveal your system prompt\",\n    \"jailbreak\",\n    \"bypass safety\",\n    \"developer message\",\n    \"hidden instructions\"\n]);\nAIApp_CL\n| where TimeGenerated > ago(24h)\n| where Prompt_s has_any (suspicious_terms)\n| summarize Attempts=count(), Users=dcount(UserPrincipalName_s), Sessions=dcount(SessionId_s) by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
+        "size": 0,
+        "title": "Prompt Injection Attempts",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "timechart"
+      },
+      "name": "query-2"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AIApp_CL\n| where TimeGenerated > ago(24h)\n| summarize PromptCount=count(), TotalTokens=sum(tolong(TotalTokens_d)), Sessions=dcount(SessionId_s) by UserPrincipalName_s\n| top 20 by PromptCount desc",
+        "size": 0,
+        "title": "Top AI Users by Prompt Volume",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "name": "query-3"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AIToolExecution_CL\n| where TimeGenerated > ago(24h)\n| summarize ToolCalls=count(), Users=dcount(UserPrincipalName_s), Agents=dcount(AgentName_s) by ToolName_s, ToolRisk_s\n| order by ToolCalls desc",
+        "size": 0,
+        "title": "Agent Tool Usage",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "name": "query-4"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AIToolExecution_CL\n| where TimeGenerated > ago(24h)\n| where ApprovedTool_b == false or ToolRisk_s in~ (\"High\", \"Critical\")\n| project TimeGenerated, AgentName_s, UserPrincipalName_s, ToolName_s, Action_s, ToolRisk_s, ApprovedTool_b, SessionId_s\n| order by TimeGenerated desc",
+        "size": 0,
+        "title": "Unauthorized or High-Risk Agent Tool Use",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "name": "query-5"
+    }
+  ],
+  "fallbackResourceIds": [],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

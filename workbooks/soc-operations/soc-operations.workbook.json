@@ -1,0 +1,119 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# SOC Operations Workbook\n\nWorkbook for Sentinel incident health, noisy analytics rules, and Logic App playbook execution visibility.\n\n> Replace `{SubscriptionId}`, `{ResourceGroup}`, and `{WorkspaceName}` during deployment or select your Sentinel workspace when editing the workbook."
+      },
+      "name": "header"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "timeRange",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 86400000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ]
+            }
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "SecurityIncident\n| where TimeGenerated > ago(30d)\n| summarize IncidentCount=count() by Severity, Status\n| order by IncidentCount desc",
+        "size": 0,
+        "title": "Sentinel Incidents by Severity and Status",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "barchart"
+      },
+      "name": "query-1"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "SecurityIncident\n| where TimeGenerated > ago(30d)\n| summarize IncidentCount=count(), LatestIncident=max(TimeGenerated) by Title\n| top 20 by IncidentCount desc",
+        "size": 0,
+        "title": "Noisy Analytics Rules",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "name": "query-2"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureDiagnostics\n| where TimeGenerated > ago(7d)\n| where ResourceProvider == \"MICROSOFT.LOGIC\"\n| summarize Runs=count(), Failures=countif(status_s =~ \"Failed\") by Resource, bin(TimeGenerated, 1d)\n| order by TimeGenerated asc",
+        "size": 0,
+        "title": "Logic App Playbook Execution Health",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "timechart"
+      },
+      "name": "query-3"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "SecurityIncident\n| where TimeGenerated > ago(7d)\n| where Severity in (\"High\", \"Critical\")\n| project TimeGenerated, Title, Severity, Status, Owner, IncidentNumber\n| order by TimeGenerated desc",
+        "size": 0,
+        "title": "Recent High Severity Incidents",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "name": "query-4"
+    }
+  ],
+  "fallbackResourceIds": [],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

@@ -1,0 +1,119 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# Microsoft Purview Data Exfiltration Workbook\n\nWorkbook for correlating Microsoft Purview, OfficeActivity, DLP, AI activity, and suspected data exfiltration.\n\n> Replace `{SubscriptionId}`, `{ResourceGroup}`, and `{WorkspaceName}` during deployment or select your Sentinel workspace when editing the workbook."
+      },
+      "name": "header"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "timeRange",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 86400000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ]
+            }
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "PurviewDLP_CL\n| where TimeGenerated > ago(24h)\n| summarize Events=count(), Users=dcount(UserPrincipalName_s), Files=dcount(FileName_s) by SensitivityLabel_s\n| order by Events desc",
+        "size": 0,
+        "title": "Sensitive Data Exposure by Label",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "barchart"
+      },
+      "name": "query-1"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let AIUsers =\n    AIApp_CL\n    | where TimeGenerated > ago(24h)\n    | summarize AIPromptCount=count(), AISessions=make_set(SessionId_s, 50) by UserPrincipalName_s;\nOfficeActivity\n| where TimeGenerated > ago(24h)\n| where Operation in (\"FileAccessed\", \"FileDownloaded\", \"FileSyncDownloadedFull\", \"AnonymousLinkCreated\", \"SharingSet\")\n| summarize FileEvents=count(), Operations=make_set(Operation, 50), Sites=make_set(Site_Url, 25)\n    by UserPrincipalName_s = UserId, bin(TimeGenerated, 15m)\n| join kind=inner AIUsers on UserPrincipalName_s\n| where FileEvents > 100\n| project TimeGenerated, UserPrincipalName_s, FileEvents, Operations, Sites, AIPromptCount, AISessions\n| order by FileEvents desc",
+        "size": 0,
+        "title": "AI-Assisted Data Exfiltration Candidates",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "name": "query-2"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "OfficeActivity\n| where TimeGenerated > ago(24h)\n| where Workload in (\"SharePoint\", \"OneDrive\")\n| where Operation in (\"AnonymousLinkCreated\", \"SecureLinkCreated\", \"SharingSet\", \"AddedToSecureLink\")\n| summarize SharingEvents=count(), Files=make_set(SourceFileName, 50), Sites=make_set(Site_Url, 25) by UserId, Operation\n| order by SharingEvents desc",
+        "size": 0,
+        "title": "External Sharing Activity",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "name": "query-3"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "PurviewDLP_CL\n| where TimeGenerated > ago(7d)\n| summarize DLPMatches=count() by bin(TimeGenerated, 1d), PolicyName_s\n| order by TimeGenerated asc",
+        "size": 0,
+        "title": "DLP Policy Matches Over Time",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "timechart"
+      },
+      "name": "query-4"
+    }
+  ],
+  "fallbackResourceIds": [],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
